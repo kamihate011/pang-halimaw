@@ -17,13 +17,16 @@ Set these in Netlify Site Settings -> Environment Variables:
 - `ADMIN_PASSWORD`
 - `FIREBASE_PROJECT_ID`
 - `FIREBASE_DATABASE_URL` (optional, recommended)
-- `FIREBASE_CLIENT_EMAIL`
+- `FIREBASE_CLIENT_EMAIL` (falls back to `NETLIFY_EMAILS_PROVIDER`)
 - `FIREBASE_PRIVATE_KEY`
+- `FIREBASE_PRIVATE_KEY_BASE64` (optional alternative to `FIREBASE_PRIVATE_KEY`)
 
 Example private key format:
 ```env
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
 ```
+
+Important: this must be the full Firebase service-account private key. API keys (for example values that start with `AIza`) will fail authentication.
 
 ## API Base
 Frontend calls `/api/*`, Netlify redirects to `/.netlify/functions/api/*`.
