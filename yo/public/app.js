@@ -95,8 +95,22 @@ function getAdminHeaders(base = {}) {
 
 async function jsonFetch(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || "Request failed.");
+  const rawBody = await response.text();
+
+  let data = {};
+  if (rawBody) {
+    try {
+      data = JSON.parse(rawBody);
+    } catch (_error) {
+      data = { message: rawBody };
+    }
+  }
+
+  if (!response.ok) {
+    const fallback = `Request failed (${response.status}).`;
+    throw new Error(data.message || fallback);
+  }
+
   return data;
 }
 
