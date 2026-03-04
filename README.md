@@ -110,6 +110,8 @@ After deploy:
 
 If it returns `Invalid PEM formatted message`, your `FIREBASE_PRIVATE_KEY` value is incorrect.
 
+- If API returns `502 Runtime.UserCodeSyntaxError` (example: `Unexpected identifier 'app'`), the deployed function bundle is broken/outdated. Trigger a fresh deploy from the latest commit and verify both root and `yo/` function files are in sync.
+
 ## Local Run
 ```bash
 npm install

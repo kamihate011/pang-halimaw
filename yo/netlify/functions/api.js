@@ -209,6 +209,20 @@ app.get('/students', async (_req, res) => {
   }
 });
 
+});
+
+app.get('/students', async (_req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const snap = await db.ref('students').get();
+    const value = snap.val() || {};
+    const list = Object.entries(value).map(([id, student]) => ({ _id: id, ...student }));
+    res.json(list);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
 app.get('/students/events', async (req, res) => {
   try {
     const db = getDbOrThrow();

@@ -1,3 +1,6 @@
+const API_ROOT_CANDIDATES = ["/api", "/.netlify/functions/api"];
+let API_ROOT = API_ROOT_CANDIDATES[0];
+let API_BASE = `${API_ROOT}/students`;
 const API_BASE_CANDIDATES = ["/api/students", "/.netlify/functions/api/students"];
 let API_BASE = API_BASE_CANDIDATES[0];
 const POLL_MS = 2000;
@@ -117,6 +120,21 @@ async function jsonFetch(url, options = {}) {
 
 
 async function resolveApiBase() {
+  let lastError = null;
+
+  for (const candidate of API_ROOT_CANDIDATES) {
+    try {
+      await jsonFetch(`${candidate}/health`);
+      API_ROOT = candidate;
+      API_BASE = `${API_ROOT}/students`;
+      return candidate;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const detail = lastError?.message ? ` ${lastError.message}` : "";
+  throw new Error(`Cannot reach API routes. Check Netlify redirects/function deploy.${detail}`);
   for (const candidate of API_BASE_CANDIDATES) {
     try {
       await jsonFetch(candidate);
