@@ -16,40 +16,40 @@
         .then((data) => { document.getElementById('out').textContent = JSON.stringify(data, null, 2); })
         .catch((e) => { document.getElementById('out').textContent = e.message; });
     <title>Biometric Distribution System</title>
-    <style>
-      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 720px; }
-      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
-      button { padding: 0.5rem 0.85rem; cursor: pointer; }
-      pre { background: #f6f8fa; padding: 0.75rem; border-radius: 6px; overflow: auto; }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <h1>Biometric Distribution System</h1>
-    <div class="card">
-      <p>API status check (through Netlify redirect <code>/api/*</code>):</p>
-      <button id="health">Check /api/health</button>
-      <pre id="output">Click the button to test connectivity.</pre>
-    </div>
+    <main class="app">
+      <header class="hero">
+        <div>
+          <p class="eyebrow">Biometric Supply System</p>
+          <h1>Student Distribution Console</h1>
+          <p class="hero-sub">Scan fingerprint, capture profile, and confirm distribution.</p>
+        </div>
+        <div class="header-actions">
+          <button class="secondary" id="adminToggleBtn" type="button">Enable Admin Mode</button>
+          <div class="connection-pill" id="connectionStatus">Connecting...</div>
+        </div>
+      </header>
 
-    <script>
-      const output = document.getElementById('output');
-      document.getElementById('health').addEventListener('click', async () => {
-        output.textContent = 'Loading...';
-        try {
-          const res = await fetch('/api/health');
-          const data = await res.json();
-          output.textContent = JSON.stringify({
-            ok: res.ok,
-            status: res.status,
-            data
-          }, null, 2);
-        } catch (error) {
-          output.textContent = JSON.stringify({
-            ok: false,
-            error: error.message
-          }, null, 2);
-        }
-      });
-    </script>
+      <section class="layout-grid">
+        <article class="panel" id="scanPanel"></article>
+
+        <article class="panel">
+          <h2>Registered Students</h2>
+          <div id="tableWrapper" class="table-wrapper"></div>
+        </article>
+      </section>
+
+      <section class="panel hidden" id="adminPanel">
+        <h2>Admin Mode</h2>
+        <div id="adminFormContainer"></div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
   </body>
 </html>
