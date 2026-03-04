@@ -1,3 +1,4 @@
+module.exports = require('../../../netlify/functions/api');
 const express = require('express');
 const serverless = require('serverless-http');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
