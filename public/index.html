@@ -9,6 +9,9 @@
       .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
       .muted { color: #666; }
       button { padding: 0.5rem 0.85rem; cursor: pointer; margin-right: 0.5rem; }
+      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 720px; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
+      button { padding: 0.5rem 0.85rem; cursor: pointer; }
       pre { background: #f6f8fa; padding: 0.75rem; border-radius: 6px; overflow: auto; }
     </style>
   </head>
@@ -21,6 +24,10 @@
       <button id="health">Check /api/health</button>
       <button id="students">Check /api/students</button>
       <pre id="output">Click a button to test API connectivity.</pre>
+    <div class="card">
+      <p>API status check (through Netlify redirect <code>/api/*</code>):</p>
+      <button id="health">Check /api/health</button>
+      <pre id="output">Click the button to test connectivity.</pre>
     </div>
 
     <script>
@@ -51,6 +58,23 @@
 
       document.getElementById('health').addEventListener('click', () => call('/api/health'));
       document.getElementById('students').addEventListener('click', () => call('/api/students'));
+      document.getElementById('health').addEventListener('click', async () => {
+        output.textContent = 'Loading...';
+        try {
+          const res = await fetch('/api/health');
+          const data = await res.json();
+          output.textContent = JSON.stringify({
+            ok: res.ok,
+            status: res.status,
+            data
+          }, null, 2);
+        } catch (error) {
+          output.textContent = JSON.stringify({
+            ok: false,
+            error: error.message
+          }, null, 2);
+        }
+      });
     </script>
   </body>
 </html>

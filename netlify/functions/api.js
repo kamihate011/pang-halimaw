@@ -21,6 +21,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
+// Placeholder route so frontend/API wiring can be validated immediately.
 app.get('/students', (_req, res) => {
   res.json([]);
 });
