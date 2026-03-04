@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Biometric Distribution System</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 720px; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
+      button { padding: 0.5rem 0.85rem; cursor: pointer; }
+      pre { background: #f6f8fa; padding: 0.75rem; border-radius: 6px; overflow: auto; }
+    </style>
+  </head>
+  <body>
+    <h1>Biometric Distribution System</h1>
+    <div class="card">
+      <p>API status check (through Netlify redirect <code>/api/*</code>):</p>
+      <button id="health">Check /api/health</button>
+      <pre id="output">Click the button to test connectivity.</pre>
+    </div>
+
+    <script>
+      const output = document.getElementById('output');
+      document.getElementById('health').addEventListener('click', async () => {
+        output.textContent = 'Loading...';
+        try {
+          const res = await fetch('/api/health');
+          const data = await res.json();
+          output.textContent = JSON.stringify({
+            ok: res.ok,
+            status: res.status,
+            data
+          }, null, 2);
+        } catch (error) {
+          output.textContent = JSON.stringify({
+            ok: false,
+            error: error.message
+          }, null, 2);
+        }
+      });
+    </script>
+  </body>
+</html>
