@@ -1,4 +1,6 @@
-const API_BASE = "/api/students";
+const API_ROOT_CANDIDATES = ["/api", "/.netlify/functions/api"];
+let API_ROOT = API_ROOT_CANDIDATES[0];
+let API_BASE = `${API_ROOT}/students`;
 const POLL_MS = 2000;
 
 const connectionStatusEl = document.getElementById("connectionStatus");
@@ -95,9 +97,42 @@ function getAdminHeaders(base = {}) {
 
 async function jsonFetch(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || "Request failed.");
+  const rawBody = await response.text();
+
+  let data = {};
+  if (rawBody) {
+    try {
+      data = JSON.parse(rawBody);
+    } catch (_error) {
+      data = { message: rawBody };
+    }
+  }
+
+  if (!response.ok) {
+    const fallback = `Request failed (${response.status}).`;
+    throw new Error(data.message || fallback);
+  }
+
   return data;
+}
+
+
+async function resolveApiBase() {
+  let lastError = null;
+
+  for (const candidate of API_ROOT_CANDIDATES) {
+    try {
+      await jsonFetch(`${candidate}/health`);
+      API_ROOT = candidate;
+      API_BASE = `${API_ROOT}/students`;
+      return candidate;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const detail = lastError?.message ? ` ${lastError.message}` : "";
+  throw new Error(`Cannot reach API routes. Check Netlify redirects/function deploy.${detail}`);
 }
 
 async function verifyAdminPassword(password) {
@@ -465,13 +500,21 @@ async function pollEvents() {
   }
 }
 
-renderIdle();
-setAdminMode(false);
-fetchStudents()
-  .then(() => setConnectionStatus("Live Connection"))
-  .catch((error) => {
+async function bootstrap() {
+  renderIdle();
+  setAdminMode(false);
+
+  try {
+    await resolveApiBase();
+    await fetchStudents();
+    setConnectionStatus("Live Connection");
+  } catch (error) {
     setConnectionStatus("Disconnected");
     tableWrapperEl.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
-  });
-setInterval(pollEvents, POLL_MS);
-pollEvents();
+  }
+
+  setInterval(pollEvents, POLL_MS);
+  pollEvents();
+}
+
+bootstrap();
