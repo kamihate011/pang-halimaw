@@ -5,52 +5,39 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Biometric Distribution System</title>
     <style>
-      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 820px; }
+      body { font-family: Arial, sans-serif; margin: 2rem; max-width: 720px; }
       .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem 1.25rem; }
-      .muted { color: #666; }
-      button { padding: 0.5rem 0.85rem; cursor: pointer; margin-right: 0.5rem; }
+      button { padding: 0.5rem 0.85rem; cursor: pointer; }
       pre { background: #f6f8fa; padding: 0.75rem; border-radius: 6px; overflow: auto; }
     </style>
   </head>
   <body>
     <h1>Biometric Distribution System</h1>
-    <p class="muted">Web interface is served from <code>/</code>. API routes are under <code>/api/*</code>.</p>
-
     <div class="card">
-      <p><strong>Connection checks</strong></p>
+      <p>API status check (through Netlify redirect <code>/api/*</code>):</p>
       <button id="health">Check /api/health</button>
-      <button id="students">Check /api/students</button>
-      <pre id="output">Click a button to test API connectivity.</pre>
+      <pre id="output">Click the button to test connectivity.</pre>
     </div>
 
     <script>
       const output = document.getElementById('output');
-
-      async function call(path) {
-        output.textContent = `Loading ${path} ...`;
+      document.getElementById('health').addEventListener('click', async () => {
+        output.textContent = 'Loading...';
         try {
-          const res = await fetch(path, { headers: { Accept: 'application/json' } });
-          const text = await res.text();
-          let parsed;
-          try {
-            parsed = JSON.parse(text);
-          } catch {
-            parsed = { raw: text.slice(0, 300) };
-          }
-
+          const res = await fetch('/api/health');
+          const data = await res.json();
           output.textContent = JSON.stringify({
             ok: res.ok,
             status: res.status,
-            contentType: res.headers.get('content-type'),
-            data: parsed
+            data
           }, null, 2);
         } catch (error) {
-          output.textContent = JSON.stringify({ ok: false, error: error.message }, null, 2);
+          output.textContent = JSON.stringify({
+            ok: false,
+            error: error.message
+          }, null, 2);
         }
-      }
-
-      document.getElementById('health').addEventListener('click', () => call('/api/health'));
-      document.getElementById('students').addEventListener('click', () => call('/api/students'));
+      });
     </script>
   </body>
 </html>

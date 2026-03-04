@@ -37,9 +37,3 @@ To prevent parse/build failure (`Base directory does not exist: /opt/build/repo/
 
 You should still update Netlify UI to use **Base directory = `.`** (or empty) for the canonical root deploy.
 
-
-
-## Web Interface
-- Web interface: `/`
-- API health: `/api/health`
-- API students: `/api/students`
