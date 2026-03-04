@@ -1,5 +1,16 @@
 # Biometric Distribution System (Netlify + Firebase)
 
+## Web Interface
+- Main UI: `/`
+- API health: `/api/health`
+- API students: `/api/students`
+
+## Netlify Structure
+- `public/` static frontend
+- `netlify/functions/api.js` serverless API handler
+- `netlify.toml` build + redirect config
+
+## Netlify Settings
 This project is organized for direct Netlify deployment:
 - Static frontend in `public/`
 - Serverless API in `netlify/functions/api.js`
@@ -15,6 +26,16 @@ If you configure these manually in the Netlify UI, use:
 - **Base directory:** `.` (repo root)
 - **Publish directory:** `public`
 - **Functions directory:** `netlify/functions`
+
+`netlify.toml` already contains these values.
+
+## Legacy Compatibility (`yo/`)
+A minimal `yo/` mirror exists only for old Netlify sites that still have `Base directory = yo`.
+- `yo/public/index.html`
+- `yo/netlify/functions/api.js`
+- `yo/package.json`
+
+If possible, update your Netlify UI to use root (`.` or empty) and treat `yo/` as fallback only.
 
 > If Netlify still shows `Base directory = yo`, update it to `.` (or clear it) in Site settings.
 
