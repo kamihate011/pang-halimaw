@@ -1,58 +1,39 @@
 # Biometric Distribution System (Netlify + Firebase)
 
-This project is now organized for direct Netlify deployment:
+This project is organized for direct Netlify deployment:
 - Static frontend in `public/`
 - Serverless API in `netlify/functions/api.js`
-- Database: **Firebase Firestore** via `firebase-admin`
+- Redirect from `/api/*` to `/.netlify/functions/api/:splat`
 
 ## Folder Layout
-- `public/` frontend UI (fingerprint session + admin mode)
-- `netlify/functions/api.js` API routes
+- `public/` frontend UI
+- `netlify/functions/api.js` API routes (Express + serverless-http)
 - `netlify.toml` build + API redirects
-- `firmware/` ESP32 sketch
 
-## Required Netlify Environment Variables
-Set these in Netlify Site Settings -> Environment Variables:
+## Netlify Build Settings
+If you configure these manually in the Netlify UI, use:
+- **Base directory:** `.` (repo root)
+- **Publish directory:** `public`
+- **Functions directory:** `netlify/functions`
 
-- `ADMIN_PASSWORD`
-- `FIREBASE_PROJECT_ID`
-- `FIREBASE_DATABASE_URL` (optional, recommended)
-- `FIREBASE_CLIENT_EMAIL`
-- `FIREBASE_PRIVATE_KEY`
+> If Netlify still shows `Base directory = yo`, update it to `.` (or clear it) in Site settings.
 
-Example private key format:
-```env
-FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-```
-
-## API Base
-Frontend calls `/api/*`, Netlify redirects to `/.netlify/functions/api/*`.
-
-## Core Endpoints
-- `GET /api/health`
-- `GET /api/students`
-- `GET /api/students/events?since=<ISO_DATE>`
-- `POST /api/students/scan`
-- `POST /api/students/profile-confirm`
-- `PUT /api/students/:id/distribution`
-- `POST /api/students/admin/verify`
-- `POST /api/students` (admin)
-- `PUT /api/students/:id` (admin)
-- `DELETE /api/students/:id` (admin)
-
-## Deploy to Netlify
-1. Push this folder to a Git repo.
-2. Import repo in Netlify.
-3. Build settings:
-   - Publish directory: `public`
-   - Functions directory: `netlify/functions`
-4. Add environment variables listed above.
-5. Deploy.
-
-## Local Netlify Dev
+## Local Run
 ```bash
 npm install
-npx netlify dev
+npm run start
 ```
 
-App should open at the Netlify dev URL and API should work through `/api/...`.
+Then open the Netlify dev URL and verify:
+- Frontend loads `/`
+- API health endpoint works at `/api/health`
+
+## Compatibility for Stale Netlify Base Directory
+Some Netlify sites still have **Base directory = `yo`** saved in UI settings.
+To prevent parse/build failure (`Base directory does not exist: /opt/build/repo/yo`), this repo includes a mirrored fallback app under `yo/`:
+- `yo/public/index.html`
+- `yo/netlify/functions/api.js`
+- `yo/package.json`
+
+You should still update Netlify UI to use **Base directory = `.`** (or empty) for the canonical root deploy.
+
