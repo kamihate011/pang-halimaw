@@ -1,3 +1,4 @@
+module.exports = require('../../../netlify/functions/api');
 const express = require('express');
 const serverless = require('serverless-http');
 const { initializeApp, cert, getApps } = require('firebase-admin/app');
@@ -23,6 +24,66 @@ function getFirebaseApp() {
       privateKey: privateKeyRaw.replace(/\\n/g, '\n')
     }),
     databaseURL
+  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL } = process.env;
+  if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY || !FIREBASE_DATABASE_URL) return null;
+  if (getApps().length > 0) {
+    return getApps()[0];
+  }
+
+  const {
+    FIREBASE_PROJECT_ID,
+    FIREBASE_CLIENT_EMAIL,
+    FIREBASE_PRIVATE_KEY,
+    FIREBASE_DATABASE_URL
+  } = process.env;
+
+  if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY || !FIREBASE_DATABASE_URL) {
+    return null;
+  }
+
+  return initializeApp({
+    credential: cert({
+      projectId: FIREBASE_PROJECT_ID,
+      clientEmail: FIREBASE_CLIENT_EMAIL,
+      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+    }),
+    databaseURL: FIREBASE_DATABASE_URL
+  });
+}
+
+async function checkFirebaseConnection() {
+  const firebaseApp = getFirebaseApp();
+
+  if (!firebaseApp) {
+    return {
+      connected: false,
+      reason: 'missing_firebase_env'
+    };
+  }
+
+  try {
+    const db = getDatabase(firebaseApp);
+    await db.ref('__connection_check__').limitToFirst(1).get();
+
+    return {
+      connected: true
+    };
+  } catch (error) {
+    return {
+      connected: false,
+      reason: error.message
+    };
+  }
+}
+
+app.get('/health', async (_req, res) => {
+  const firebase = await checkFirebaseConnection();
+
+  res.json({
+    status: 'ok',
+    service: 'api',
+    firebase,
+    timestamp: new Date().toISOString()
   });
 }
 
@@ -146,6 +207,189 @@ app.get('/students', async (_req, res) => {
   } catch (error) {
     res.status(error.statusCode || 500).json({ message: error.message });
   }
+});
+
+app.get('/students/events', async (req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const since = String(req.query.since || '');
+
+    let query = db.ref('events').orderByChild('createdAt');
+    if (since) query = query.startAt(since);
+
+    const snap = await query.limitToLast(200).get();
+    const value = snap.val() || {};
+    const events = Object.values(value)
+      .filter((event) => !since || event.createdAt > since)
+      .sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+
+    res.json(events);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.post('/students/scan', verifyDevice, async (req, res) => {
+  try {
+    const fingerprintId = Number(req.body?.fingerprintId);
+    if (!Number.isFinite(fingerprintId) || fingerprintId <= 0) {
+      return res.status(400).json({ message: 'fingerprintId must be a positive number.' });
+    }
+
+    const db = getDbOrThrow();
+    const student = await getStudentByFingerprintId(db, fingerprintId);
+
+    if (!student) {
+      const payload = { fingerprintId };
+      await emitEvent(db, 'scan:unknown', payload);
+      return res.status(404).json({ matched: false, fingerprintId });
+    }
+
+    await emitEvent(db, 'scan:matched', student);
+    return res.json({ matched: true, student });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.post('/students/profile-confirm', async (req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const normalized = normalizeStudentInput(req.body);
+    const validationError = validateStudentInput(normalized);
+    if (validationError) return res.status(400).json({ message: validationError });
+
+    const now = new Date().toISOString();
+    const existing = await getStudentByFingerprintId(db, normalized.fingerprintId);
+
+    if (existing) {
+      const updated = {
+        ...existing,
+        ...normalized,
+        distributionStatus: 'DISTRIBUTED',
+        updatedAt: now
+      };
+      const saved = await writeStudent(db, existing._id, updated);
+      await emitEvent(db, 'student:updated', saved);
+      return res.json(saved);
+    }
+
+    const studentId = db.ref('students').push().key;
+    const created = {
+      ...normalized,
+      distributionStatus: 'DISTRIBUTED',
+      createdAt: now,
+      updatedAt: now
+    };
+    const saved = await writeStudent(db, studentId, created);
+    await emitEvent(db, 'student:created', saved);
+    return res.status(201).json(saved);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.post('/students', verifyAdmin, async (req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const normalized = normalizeStudentInput(req.body);
+    const validationError = validateStudentInput(normalized);
+    if (validationError) return res.status(400).json({ message: validationError });
+
+    const existing = await getStudentByFingerprintId(db, normalized.fingerprintId);
+    if (existing) return res.status(409).json({ message: 'fingerprintId already exists.' });
+
+    const now = new Date().toISOString();
+    const studentId = db.ref('students').push().key;
+    const created = {
+      ...normalized,
+      distributionStatus: req.body?.distributionStatus || 'PENDING',
+      createdAt: now,
+      updatedAt: now
+    };
+
+    const saved = await writeStudent(db, studentId, created);
+    await emitEvent(db, 'student:created', saved);
+    return res.status(201).json(saved);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.put('/students/:id', verifyAdmin, async (req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const existing = await getStudentById(db, req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Student not found.' });
+
+    const normalized = normalizeStudentInput(req.body);
+    const validationError = validateStudentInput(normalized);
+    if (validationError) return res.status(400).json({ message: validationError });
+
+    if (existing.fingerprintId !== normalized.fingerprintId) {
+      const conflict = await getStudentByFingerprintId(db, normalized.fingerprintId);
+      if (conflict && conflict._id !== existing._id) {
+        return res.status(409).json({ message: 'fingerprintId already exists.' });
+      }
+      await db.ref(`fingerprintIndex/${existing.fingerprintId}`).remove();
+    }
+
+    const updated = {
+      ...existing,
+      ...normalized,
+      distributionStatus: req.body?.distributionStatus || existing.distributionStatus || 'PENDING',
+      updatedAt: new Date().toISOString()
+    };
+
+    const saved = await writeStudent(db, existing._id, updated);
+    await emitEvent(db, 'student:updated', saved);
+    return res.json(saved);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.put('/students/:id/distribution', async (req, res) => {
+  try {
+    const status = String(req.body?.status || '').toUpperCase();
+    if (!['PENDING', 'DISTRIBUTED'].includes(status)) {
+      return res.status(400).json({ message: 'status must be PENDING or DISTRIBUTED.' });
+    }
+
+    const db = getDbOrThrow();
+    const existing = await getStudentById(db, req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Student not found.' });
+
+    const updated = {
+      ...existing,
+      distributionStatus: status,
+      updatedAt: new Date().toISOString()
+    };
+
+    const saved = await writeStudent(db, existing._id, updated);
+    await emitEvent(db, 'student:updated', saved);
+    return res.json(saved);
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+});
+
+app.delete('/students/:id', verifyAdmin, async (req, res) => {
+  try {
+    const db = getDbOrThrow();
+    const existing = await getStudentById(db, req.params.id);
+    if (!existing) return res.status(404).json({ message: 'Student not found.' });
+
+    await db.ref(`students/${existing._id}`).remove();
+    await db.ref(`fingerprintIndex/${existing.fingerprintId}`).remove();
+    await emitEvent(db, 'student:deleted', { _id: existing._id, fingerprintId: existing.fingerprintId });
+    return res.json({ ok: true });
+  } catch (error) {
+    return res.status(error.statusCode || 500).json({ message: error.message });
+  }
+app.get('/firebase/status', async (_req, res) => {
+  const firebase = await checkFirebaseConnection();
+  res.json(firebase);
 });
 
 app.get('/students/events', async (req, res) => {
