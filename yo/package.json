@@ -1,0 +1,15 @@
+{
+  "name": "biometric-distribution-system",
+  "version": "1.0.0",
+  "description": "Fingerprint-enabled student supply distribution tracker for Netlify + Firebase",
+  "main": "netlify/functions/api.js",
+  "scripts": {
+    "dev": "npx netlify dev",
+    "start": "npx netlify dev"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "firebase-admin": "^12.6.0",
+    "serverless-http": "^3.2.0"
+  }
+}
