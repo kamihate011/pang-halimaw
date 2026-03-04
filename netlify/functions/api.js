@@ -9,16 +9,20 @@ app.use(express.json());
 function getFirebaseApp() {
   if (getApps().length > 0) return getApps()[0];
 
-  const { FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY, FIREBASE_DATABASE_URL } = process.env;
-  if (!FIREBASE_PROJECT_ID || !FIREBASE_CLIENT_EMAIL || !FIREBASE_PRIVATE_KEY || !FIREBASE_DATABASE_URL) return null;
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY;
+  const databaseURL = process.env.FIREBASE_DATABASE_URL;
+
+  if (!projectId || !clientEmail || !privateKeyRaw || !databaseURL) return null;
 
   return initializeApp({
     credential: cert({
-      projectId: FIREBASE_PROJECT_ID,
-      clientEmail: FIREBASE_CLIENT_EMAIL,
-      privateKey: FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      projectId,
+      clientEmail,
+      privateKey: privateKeyRaw.replace(/\\n/g, '\n')
     }),
-    databaseURL: FIREBASE_DATABASE_URL
+    databaseURL
   });
 }
 
