@@ -1,4 +1,5 @@
-const API_BASE = "/api/students";
+const API_BASE_CANDIDATES = ["/api/students", "/.netlify/functions/api/students"];
+let API_BASE = API_BASE_CANDIDATES[0];
 const POLL_MS = 2000;
 
 const connectionStatusEl = document.getElementById("connectionStatus");
@@ -95,9 +96,38 @@ function getAdminHeaders(base = {}) {
 
 async function jsonFetch(url, options = {}) {
   const response = await fetch(url, options);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.message || "Request failed.");
+  const rawBody = await response.text();
+
+  let data = {};
+  if (rawBody) {
+    try {
+      data = JSON.parse(rawBody);
+    } catch (_error) {
+      data = { message: rawBody };
+    }
+  }
+
+  if (!response.ok) {
+    const fallback = `Request failed (${response.status}).`;
+    throw new Error(data.message || fallback);
+  }
+
   return data;
+}
+
+
+async function resolveApiBase() {
+  for (const candidate of API_BASE_CANDIDATES) {
+    try {
+      await jsonFetch(candidate);
+      API_BASE = candidate;
+      return candidate;
+    } catch (_error) {
+      // Try next candidate
+    }
+  }
+
+  throw new Error("Cannot reach API routes. Check Netlify redirects and function deployment.");
 }
 
 async function verifyAdminPassword(password) {
@@ -465,13 +495,21 @@ async function pollEvents() {
   }
 }
 
-renderIdle();
-setAdminMode(false);
-fetchStudents()
-  .then(() => setConnectionStatus("Live Connection"))
-  .catch((error) => {
+async function bootstrap() {
+  renderIdle();
+  setAdminMode(false);
+
+  try {
+    await resolveApiBase();
+    await fetchStudents();
+    setConnectionStatus("Live Connection");
+  } catch (error) {
     setConnectionStatus("Disconnected");
     tableWrapperEl.innerHTML = `<p class="muted">${escapeHtml(error.message)}</p>`;
-  });
-setInterval(pollEvents, POLL_MS);
-pollEvents();
+  }
+
+  setInterval(pollEvents, POLL_MS);
+  pollEvents();
+}
+
+bootstrap();
